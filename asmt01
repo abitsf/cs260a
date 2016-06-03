@@ -1,0 +1,138 @@
+#!/bin/bash
+# CS260A Assignment 1 Andrew Boak
+# Date: 2/9/16
+# pwd = /students/aboak/cs260a
+# login = aboak
+# A script to  to produce a list of student and
+# faculty CCSF email addresses for a class, given the class' CRN number
+# The syntax for this script is "maillist [-q] CRN"
+# The script will output information on the given CRN number, and create a sorted
+# list of email addresses, saved to a file named the same as the given CRN number, that will reside in the
+# current directory. If the option flag -q is given, there is no output to the screen, but the
+# file is still created. Any errors will be displayed, with comments.
+
+
+
+# First, create Error function, including a usage syntax reminder.
+
+error () {
+        echo -e "maillist $text is incorrect.\n$usage"
+	exit 1
+	}
+
+text=$@
+usage="Syntax must be maillist <CRN number>, or maillist -q <CRN number>"
+
+# Check for correct data input
+
+# use an "if" statement to check for correct number of arguments. If the number is incorrect, it calls the error function to display the Usage message and exit.
+
+NumArgs=$#
+
+if [ $NumArgs -gt 2 ];
+then    echo "You have not entered too many arguments."
+        error
+else    true
+fi
+
+if [ $NumArgs == 0 ];
+then    echo "You have not entered any arguments."
+        error
+else    true
+fi
+
+# Check that flag is -q (if it exists) and not something else.
+
+if [ $NumArgs == 2 ];
+then
+ 	if [ $1 != "-q" ];
+	then
+	echo "You have not entered the correct option flag"
+        error
+	else    true
+	fi
+fi
+
+# After data check, proceed with using the given data
+
+# Check for quiet flag and make CRN number a variable
+
+if [ $1 == '-q' ];
+
+then
+	quiet='true'
+	CRN=$2
+else
+	CRN=$1
+fi
+
+# Check on length of CRN#, if incorrect -> call error function
+
+if expr length "$CRN" != 5 &>/dev/null;
+then
+	echo "A CRN number must be 5 digits long, please enter a 5 digit CRN number"
+	error
+fi
+
+# Retrieve data for processing
+
+TMPFILE=$(getent group "c$CRN")
+
+# Check if CRN number exists
+
+if [ -n "$TMPFILE" ];
+then
+	true
+else
+	echo "The CRN number you entered does not exist. Please try again"
+	error
+fi
+
+# Make variables from data
+
+GNAME=$(echo $TMPFILE | cut -d: -f1 | awk '{print substr($0,2)}')
+GID=$(echo $TMPFILE | cut -d: -f3)
+NAMES=$(echo $TMPFILE | cut -d: -f4)
+
+# Create the email address file using the NAMES variable and count the amount of students
+# and the amount of faculty in the list.
+
+NAMELIST=$(echo $NAMES | tr ',' ' ')
+studentcount=0
+facultycount=0
+
+for NAMES in $NAMELIST;
+do
+HOMEDIR=$( eval echo ~$NAMES)
+	if [[ "$HOMEDIR" = "/students"* ]];
+	then
+		echo "$NAMES@gmail.ccsf.edu"
+		studentcount=$((studentcount+1))
+	else
+		echo "$NAMES@ccsf.edu"
+		facultycount=$((facultycount+1))
+	fi
+done > $CRN
+
+# Sort the file
+
+sort -o $CRN $CRN
+
+# Get the absolute path
+
+ABPATH=$(pwd)
+
+# Output the results if -q flag is not present
+
+if [[ $quiet != 'true' ]];
+then
+	echo "Here are your results:"
+	echo "The number of students is "$studentcount
+	echo "The number of faculty is "$facultycount
+	echo "The group name is c"$GNAME
+	echo "The group ID is "$GID
+	echo "The absolute path to the email file is "$ABPATH"/"$CRN
+	exit 0
+else
+	exit 0
+fi
